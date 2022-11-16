@@ -1,39 +1,21 @@
-import matplotlib.pyplot as plt
-import statsmodels.api as sm
-import numbers
 import pandas as pd
-from tabulate import tabulate
+import numpy as np
+import statsmodels.formula.api as smf
+from matplotlib import pyplot as plt
 
+data = pd.read_csv('VideoGamesDS.csv', index_col=0).sort_values(by='Ventas_EU', axis=0, ascending=False)
+model = smf.ols(' Ventas_Totales~ Ventas_NA', data=data)
+model = model.fit()
 
-def print_tabulate(df: pd.DataFrame):
-    print(tabulate(df, headers=df.columns, tablefmt="orgtbl"))
+sales_pred = model.predict()
 
-def transform_variable(df: pd.DataFrame, x:str)->pd.Series:
-    if isinstance(df[x][0], numbers.Number):
-        return df[x] # type: pd.Series
-    else:
-        return pd.Series([i for i in range(0, len(df[x]))])
+plt.figure(figsize=(12, 6))
+plt.plot(data['Ventas_NA'], data['Ventas_Totales'], 'o')           
+plt.plot(data['Ventas_NA'], sales_pred, 'r', linewidth=2)   
+plt.xlabel('Ventas_NA ')
+plt.ylabel('Ventas_Totales')
+plt.title('Ventas_NA y Ventas_Totales')
 
-
-def linear_regression(df: pd.DataFrame, x:str, y: str)->None:
-    fixed_x = transform_variable(df, x)
-    model= sm.OLS(df[y],sm.add_constant(fixed_x)).fit()
-    print(model.summary())
-
-    coef = pd.read_html(model.summary().tables[1].as_html(),header=0,index_col=0)[0]['coef']
-    df.plot(x=x,y=y, kind='scatter')
-    plt.plot(df[x],[pd.DataFrame.mean(df[y]) for _ in fixed_x.items()], color='green')
-    plt.plot(df_by_y[x],[ coef.values[1] * x + coef.values[0] for _, x in fixed_x.items()], color='red')
-    plt.xticks(rotation=90)
-    plt.savefig(f'regresion de _{y}_{x}.png')
-    plt.close()
-
-    
-df = pd.read_csv("VideoGamesDS.csv") # type: pd.DataFrame
-print_tabulate(df.head(50))
-df_by_y = df.groupby("Año")\
-              .aggregate(Ventas_EU=pd.NamedAgg(column="Ventas_EU", aggfunc=pd.DataFrame.mean))
-df_by_y["Ventas_EU"] = df_by_y["Ventas_EU"]**10
-df_by_y.reset_index(inplace=True)
-print_tabulate(df_by_y.head())
-linear_regression(df_by_y, "Año", "Ventas_EU")
+plt.savefig('regresion.png')
+plt.show()
+plt.close()
