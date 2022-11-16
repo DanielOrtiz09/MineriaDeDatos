@@ -1,49 +1,91 @@
-import matplotlib.pyplot as plt
-import statsmodels.api as sm
-import numbers
 import pandas as pd
-from tabulate import tabulate
-from statsmodels.stats.outliers_influence import summary_table
-from typing import Tuple, Dict
+import matplotlib.pyplot as plt
 import numpy as np
-import warnings
-warnings.filterwarnings("ignore")
-df = pd.read_csv("VideoGamesDS.csv")
+from scipy.stats import mode
 
+videogames = pd.read_csv("VideoGamesDS.csv")
 
-def print_tabulate(df: pd.DataFrame):
-    print(tabulate(df, headers=df.columns, tablefmt="orgtbl"))
+ #   Formula de distancia entre dos puntos, como el eje 'y' es muy pequeño, redondeamos a el rango de 'x'
+def ClassificationFunc(position):   
+    radioA = 3
+    radioB = 5
 
-def transform_variable(df: pd.DataFrame, x:str)->pd.Series:
-    if isinstance(df[x][0], numbers.Number):
-        return df[x] # type: pd.Series
-    else:
-        return pd.Series([i for i in range(0, len(df[x]))])
+    distancia = np.sqrt( videogames['Ventas_EU'][position]**2 + videogames['Ventas_NA'][position]**2 )
+    
+    if distancia <= radioA:
+        return "Grupo A"
+    elif distancia <= radioB and distancia > radioA:
+        return "Grupo B"
+    elif  distancia > radioB:
+        return "Grupo C"
+    
+    return "GrupoC"
 
-def linear_regression(df: pd.DataFrame, x:str, y: str)->Dict[str, float]:
-    fixed_x = transform_variable(df, x)
-    model= sm.OLS(df[y],sm.add_constant(fixed_x)).fit()
-    bands = pd.read_html(model.summary().tables[1].as_html(),header=0,index_col=0)[0]
-    print_tabulate(pd.read_html(model.summary().tables[1].as_html(),header=0,index_col=0)[0])
-    coef = pd.read_html(model.summary().tables[1].as_html(),header=0,index_col=0)[0]['coef']
-    r_2_t = pd.read_html(model.summary().tables[0].as_html(),header=None,index_col=None)[0]
-    return {'m': coef.values[1], 'b': coef.values[0], 'r2': r_2_t.values[0][3], 'r2_adj': r_2_t.values[1][3], 'low_band': bands['[0.025'][0], 'hi_band': bands['0.975]'][0]}
-
-def plt_lr(df: pd.DataFrame, x:str, y: str, m: float, b: float, r2: float, r2_adj: float, low_band: float, hi_band: float, colors: Tuple[str,str]):
-    fixed_x = transform_variable(df, x)
-    df.plot(x=x,y=y, kind='scatter', figsize=(25,12))
-    plt.plot(df[x],[ m * x + b for _, x in fixed_x.items()], color=colors[0])
-    plt.fill_between(df[x],
-                     [ m * x  + low_band for _, x in fixed_x.items()],
-                     [ m * x + hi_band for _, x in fixed_x.items()], alpha=0.2, color=colors[1])
-
-
-df_by_genero_Ventas_EU = df.groupby("Genero").aggregate(Ventas_EU=pd.NamedAgg(column="Ventas_EU", aggfunc=pd.DataFrame.mean))
-df_by_genero_Ventas_EU.reset_index(inplace=True)
-
-a = linear_regression(df_by_genero_Ventas_EU, "Genero", "Ventas_EU")
-plt_lr(df=df_by_genero_Ventas_EU, x="Genero", y="Ventas_EU", colors=('yellow', 'blue'), **a)
-
-plt.xticks(rotation=90)
-plt.savefig('Pronostico de ventas por genero.png')
+#   Grafica sin clasificación
+plt.scatter(videogames['Ventas_EU'], videogames['Ventas_NA'])
+plt.title("Relacion entre las ventas de europa y las de america del norte")
+plt.xlabel("Ventas de europa")
+plt.ylabel("Ventas de america del norte")
+plt.savefig("Relacion naeu.png")
 plt.close()
+
+videogames=videogames.reset_index()
+videogames['group'] = videogames['index'].transform(ClassificationFunc)
+#print(videogames)
+
+#   Grafica con clasificación
+def scatterClassification(file_path, df, x_column, y_column, label_column):
+    colors = ["blue", "gray", "red"]
+    fig, ax = plt.subplots()
+    labels = pd.unique(df[label_column])
+    
+    for i, label in enumerate(labels):
+        filter_df = df.query(f"{label_column} == '{label}'")
+        ax.scatter(filter_df[x_column], filter_df[y_column], label=label, color=colors[i])
+    
+    ax.set_title("Relacion entre las ventas de europa y las de america del norte")
+    ax.set_xlabel("Ventas de europa")
+    ax.set_ylabel("Ventas de america del norte") 
+    ax.legend()
+    plt.savefig(file_path)
+    plt.close()
+
+def euclidean_distance(p_1, p_2) -> float:
+    return np.sqrt(np.sum((p_2 - p_1) ** 2))
+
+def k_nearest_neightbors(points, labels, input_data, k):
+    input_distances = [
+        [euclidean_distance(input_point, point) for point in points]
+        for input_point in input_data
+    ]
+    points_k_nearest = [
+        np.argsort(input_point_dist)[:k] for input_point_dist in input_distances
+    ]
+    return [
+        mode([labels[index] for index in point_nearest])
+        for point_nearest in points_k_nearest
+    ]
+
+scatterClassification("RelacionVentas de europa y norte america", videogames, "Ventas_EU", "Ventas_NA", "group")
+
+df = pd.DataFrame()
+df['x'] = videogames['Ventas_EU']
+df['y'] = videogames['Ventas_NA']
+df['label'] = videogames['group']
+#print(df)
+
+list_t = [
+    (np.array(tuples[0:1]), tuples[2])
+    for tuples in df.itertuples(index=False, name=None)
+]
+
+points = [point for point, _ in list_t]
+labels = [label for _, label in list_t]
+
+kn = k_nearest_neightbors(
+    points,
+    labels,
+    [np.array([5, 100]), np.array([8, 200]), np.array([10, 300]), np.array([12, 400])],
+    5,
+)
+print(kn)
