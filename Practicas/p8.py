@@ -5,7 +5,6 @@ from scipy.stats import mode
 
 videogames = pd.read_csv("VideoGamesDS.csv")
 
- #   Formula de distancia entre dos puntos, como el eje 'y' es muy pequeño, redondeamos a el rango de 'x'
 def ClassificationFunc(position):   
     radioA = 3
     radioB = 5
@@ -21,7 +20,6 @@ def ClassificationFunc(position):
     
     return "GrupoC"
 
-#   Grafica sin clasificación
 plt.scatter(videogames['Ventas_EU'], videogames['Ventas_NA'])
 plt.title("Relacion entre las ventas de europa y las de america del norte")
 plt.xlabel("Ventas de europa")
@@ -31,9 +29,7 @@ plt.close()
 
 videogames=videogames.reset_index()
 videogames['group'] = videogames['index'].transform(ClassificationFunc)
-#print(videogames)
 
-#   Grafica con clasificación
 def scatterClassification(file_path, df, x_column, y_column, label_column):
     colors = ["blue", "gray", "red"]
     fig, ax = plt.subplots()
@@ -72,7 +68,6 @@ df = pd.DataFrame()
 df['x'] = videogames['Ventas_EU']
 df['y'] = videogames['Ventas_NA']
 df['label'] = videogames['group']
-#print(df)
 
 list_t = [
     (np.array(tuples[0:1]), tuples[2])
